@@ -29,8 +29,9 @@ class SevenSeg
 
   public:
 
-    // Constructor
+    // Constructors
     SevenSeg(int,int,int,int,int,int,int);
+    SevenSeg(int,int,int,int,int,int,int,int);
 
     // Low level functions for initializing hardware
     void setCommonAnode();
@@ -45,7 +46,9 @@ class SevenSeg
     void clearDisp();
     void changeDigit(int);
     void changeDigit(char);
+    void writeSeg(unsigned char);
     void writeDigit(int);
+    void writeAll(int);
     void writeDigit(char);
     void setDP();
     void clearDP();
@@ -87,14 +90,18 @@ class SevenSeg
   private:
 
     // The pins for each of the seven segments (eight with decimal point)
-    int _A;
-    int _B;
-    int _C;
-    int _D;
-    int _E;
-    int _F;
-    int _G;
-    int _DP;	// -1 when decimal point not assigned
+#define DIGITS_COUNT	7
+    int _SEG[DIGITS_COUNT+1];
+#define _A _SEG[0]
+#define _B _SEG[1]
+#define _C _SEG[2]
+#define _D _SEG[3]
+#define _E _SEG[4]
+#define _F _SEG[5]
+#define _G _SEG[6]
+#define _DP _SEG[7]
+    int _segCnt;
+
 
     // Variables used for colon and apostrophe symbols
     int _colonState;	// Whether colon is on (_segOn) or off (_segOff).

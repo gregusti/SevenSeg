@@ -17,105 +17,101 @@
 
   You should have received a copy of the GNU Lesser General Public License
   along with SevenSeg.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 
 #include "Arduino.h"
 #include "SevenSeg.h"
 
-// Constructor
+// Constructor for 7 segments
 SevenSeg::SevenSeg(int A,int B,int C,int D,int E,int F,int G){
+	SevenSeg(A,B,C,D,E,F,G,-1); // DP initially not assigned
+}
 
-  // Assume Common Anode (user must change this if false)
-  setCommonAnode();
+#define _LEN(array) (sizeof(array)/sizeof(*array))
 
-  // Set segment pins
-  _A=A;
-  _B=B;
-  _C=C;
-  _D=D;
-  _E=E;
-  _F=F;
-  _G=G;
-  _DP=-1;	// DP initially not assigned
+// Constructor for 8 segments
+SevenSeg::SevenSeg(int A,int B,int C,int D,int E,int F,int G,int DP){
 
-  // Set all segment pins as outputs
-  pinMode(_A, OUTPUT);
-  pinMode(_B, OUTPUT);
-  pinMode(_C, OUTPUT);
-  pinMode(_D, OUTPUT);
-  pinMode(_E, OUTPUT);
-  pinMode(_F, OUTPUT);
-  pinMode(_G, OUTPUT);
+	// Assume Common Anode (user must change this if false)
+	setCommonAnode();
 
-  // Assume no digit pins are used (i.e. it's only one hardwired digit)
-  _numOfDigits=0;
+	// Set segment pins
+	_A=A;
+	_B=B;
+	_C=C;
+	_D=D;
+	_E=E;
+	_F=F;
+	_G=G;
+	_DP=DP;
+	_segCnt=_DP!=-1?_LEN(_SEG):_LEN(_SEG)-1;
 
-  _colonState=_segOff;	// default off
-  _aposState=_segOff;	// default off
-  _colonSegPin=-1;	// -1 when not assigned
-  _colonSegLPin=-1;	// -1 when not assigned
-  _aposSegPin=-1;	// -1 when not assigned
-  _symbDigPin=-1;	// -1 when not assigned
+	// Set all segment pins as outputs
+	for(int s=0;s<_segCnt;s++) {
+		pinMode(_SEG[s], OUTPUT);
+	}
 
-  // When no pins are used you need not multiplex the output and the delay is superfluous
-  // TBD: Needed for duty cycle control. Add option to differentiate between 0 and 1 digit pins
-  _digitDelay=0;
-  _digitOnDelay=0;
-  _digitOffDelay=0;
-  _dutyCycle=100;
+	// Assume no digit pins are used (i.e. it's only one hardwired digit)
+	_numOfDigits=0;
 
-  // Timer data (default values when no timer is assigned)
-  _timerDigit=0;
-  _timerPhase=1;
-  _timerID=-1;
-  _timerCounter=0;
-  _timerCounterOnEnd=0;
-  _timerCounterOffEnd=0;
+	_colonState=_segOff;	// default off
+	_aposState=_segOff;	// default off
+	_colonSegPin=-1;	// -1 when not assigned
+	_colonSegLPin=-1;	// -1 when not assigned
+	_aposSegPin=-1;	// -1 when not assigned
+	_symbDigPin=-1;	// -1 when not assigned
 
-  _writeInt=0;
-  _writePoint=0;
-  _writeStr=0;
-  _writeMode=' ';
+	// When no pins are used you need not multiplex the output and the delay is superfluous
+	// TBD: Needed for duty cycle control. Add option to differentiate between 0 and 1 digit pins
+	_digitDelay=0;
+	_digitOnDelay=0;
+	_digitOffDelay=0;
+	_dutyCycle=100;
 
-  // Clear display
-  clearDisp();
+	// Timer data (default values when no timer is assigned)
+	_timerDigit=0;
+	_timerPhase=1;
+	_timerID=-1;
+	_timerCounter=0;
+	_timerCounterOnEnd=0;
+	_timerCounterOffEnd=0;
+
+	_writeInt=0;
+	_writePoint=0;
+	_writeStr=0;
+	_writeMode=' ';
+
+	// Clear display
+	clearDisp();
 }
 
 void SevenSeg::setCommonAnode(){
-  _digOn=HIGH;
-  _digOff=LOW;
-  _segOn=LOW;
-  _segOff=HIGH;
+	_digOn=HIGH;
+	_digOff=LOW;
+	_segOn=LOW;
+	_segOff=HIGH;
 }
 
 void SevenSeg::setCommonCathode(){
-  _digOn=LOW;
-  _digOff=HIGH;
-  _segOn=HIGH;
-  _segOff=LOW;
+	_digOn=LOW;
+	_digOff=HIGH;
+	_segOn=HIGH;
+	_segOff=LOW;
 }
 
 void SevenSeg::clearDisp(){
 
-  for(int i=0;i<_numOfDigits;i++){
-    digitalWrite(_dig[i], _digOff);
-  }
-  digitalWrite(_A, _segOff);
-  digitalWrite(_B, _segOff);
-  digitalWrite(_C, _segOff);
-  digitalWrite(_D, _segOff);
-  digitalWrite(_E, _segOff);
-  digitalWrite(_F, _segOff);
-  digitalWrite(_G, _segOff);
+	for(int i=0;i<_numOfDigits;i++){
+		digitalWrite(_dig[i], _digOff);
+	}
+	for(int s=0;s<_segCnt;s++){
+		digitalWrite(_SEG[s], _segOff);
+	}
 
-  if(_DP!=-1){	// Clear DP too if assigned
-    digitalWrite(_DP, _segOff);
-  }
-
-  if(_symbDigPin!=-1){
-    digitalWrite(_symbDigPin, _digOff);
-  }
+	if(_symbDigPin!=-1){
+		digitalWrite(_symbDigPin, _digOff);
+	}
 
 }
 
@@ -124,48 +120,48 @@ void SevenSeg::clearDisp(){
    will only be pointed to by this object. That's not very pretty since the object doesn't
    actually contain all the information about the display. Further on you rely on the array
    being declared in a persistent scope and that the user doesn't change it.
-*/
+ */
 void SevenSeg::setDigitPins(int numOfDigits, int *pDigitPins){
-  _dig=pDigitPins;
-  _numOfDigits=numOfDigits;
+	_dig=pDigitPins;
+	_numOfDigits=numOfDigits;
 
-  for(int i=0;i<_numOfDigits;i++){
-    pinMode(_dig[i],OUTPUT);
-  }
+	for(int i=0;i<_numOfDigits;i++){
+		pinMode(_dig[i],OUTPUT);
+	}
 
-  clearDisp();
+	clearDisp();
 
-  // Set the default refresh rate of 100 Hz. If the user wants another refresh rate this
-  // would have to be set after the setDigitPins function.
-  setRefreshRate(100);
+	// Set the default refresh rate of 100 Hz. If the user wants another refresh rate this
+	// would have to be set after the setDigitPins function.
+	setRefreshRate(100);
 }
 
 void SevenSeg::setDigitDelay(long int delay){
-  _digitDelay=delay;
-  updDelay();
+	_digitDelay=delay;
+	updDelay();
 }
 
 void SevenSeg::setDutyCycle(int dc){
-  _dutyCycle=dc;
-  updDelay();
+	_dutyCycle=dc;
+	updDelay();
 }
 
 void SevenSeg::setActivePinState(int segActive, int digActive){
-  _digOn = digActive;
-  _digOff = !digActive;
-  _segOn = segActive;
-  _segOff = !segActive;
+	_digOn = digActive;
+	_digOff = !digActive;
+	_segOn = segActive;
+	_segOff = !segActive;
 }
 
 void SevenSeg::setRefreshRate(int freq){
-  long int period = 1000000L/freq;
-  long int digitDelay = period/_numOfDigits;
+	long int period = 1000000L/freq;
+	long int digitDelay = period/_numOfDigits;
 
-  if(_symbDigPin!=-1){	// Separate symbol pin in use. One more digit to multiplex across.
-    digitDelay = period/(_numOfDigits+1);
-  }
+	if(_symbDigPin!=-1){	// Separate symbol pin in use. One more digit to multiplex across.
+		digitDelay = period/(_numOfDigits+1);
+	}
 
-  setDigitDelay(digitDelay);
+	setDigitDelay(digitDelay);
 }
 
 /*
@@ -232,104 +228,104 @@ void SevenSeg::setRefreshRate(int freq){
 
 void SevenSeg::writeClock(int ss){
 
-  writeClock(ss/60,ss%60);
+	writeClock(ss/60,ss%60);
 
 }
 
 void SevenSeg::writeClock(int ss, char c){
 
-  writeClock(ss/60,ss%60,c);
+	writeClock(ss/60,ss%60,c);
 
 }
 
 void SevenSeg::writeClock(int mm, int ss){
 
-  // Use ':' if assigned, '.' otherwise, or simply nothing if none assigned
+	// Use ':' if assigned, '.' otherwise, or simply nothing if none assigned
 
-  if(_colonSegPin!=-1){
-    writeClock(mm,ss,':');
-  } else if(_DP!=-1){
-    writeClock(mm,ss,'.');
-  } else {
-    writeClock(mm,ss,'_');
-  }
+	if(_colonSegPin!=-1){
+		writeClock(mm,ss,':');
+	} else if(_DP!=-1){
+		writeClock(mm,ss,'.');
+	} else {
+		writeClock(mm,ss,'_');
+	}
 
 }
 
 void SevenSeg::writeClock(int mm, int ss, char c){
 
-  if(_timerID==-1){  // No timer assigned. MUX once.
+	if(_timerID==-1){  // No timer assigned. MUX once.
 
-    int num = mm*100+ss;
+		int num = mm*100+ss;
 
-    // colon through symbpin? 1 if yes.
-    int symbColon = (_symbDigPin!=-1);
+		// colon through symbpin? 1 if yes.
+		int symbColon = (_symbDigPin!=-1);
 
-    for(int i=_numOfDigits-1;i>=0;i--){
-      changeDigit(i);
-      int nextDigit = num % 10;
-      writeDigit(nextDigit);       // Possible future update: don't write insignificant zeroes
-      if(c==':' && !symbColon) setColon();
-      if((c=='.')&&(i==_numOfDigits-3)) setDP();  // Only set "." in the right place
-      num /= 10;
-      execDelay(_digitOnDelay);
-      if(c==':' && !symbColon) clearColon();
-      if(c=='.') clearDP();
-      writeDigit(' ');
-      execDelay(_digitOffDelay);
-    }
+		for(int i=_numOfDigits-1;i>=0;i--){
+			changeDigit(i);
+			int nextDigit = num % 10;
+			writeDigit(nextDigit);       // Possible future update: don't write insignificant zeroes
+			if(c==':' && !symbColon) setColon();
+			if((c=='.')&&(i==_numOfDigits-3)) setDP();  // Only set "." in the right place
+			num /= 10;
+			execDelay(_digitOnDelay);
+			if(c==':' && !symbColon) clearColon();
+			if(c=='.') clearDP();
+			writeDigit(' ');
+			execDelay(_digitOffDelay);
+		}
 
-    if(symbColon && c==':'){
-      changeDigit('s');
-      setColon();
-      execDelay(_digitOnDelay);
-      clearColon();
-      execDelay(_digitOffDelay);
-    }
+		if(symbColon && c==':'){
+			changeDigit('s');
+			setColon();
+			execDelay(_digitOnDelay);
+			clearColon();
+			execDelay(_digitOffDelay);
+		}
 
-  } else {
+	} else {
 
-    _writeMode=c;
-    _writeInt=mm*100+ss;
+		_writeMode=c;
+		_writeInt=mm*100+ss;
 
-  }
+	}
 
 }
 
 void SevenSeg::write(int num,int point){
-  write((long int)num, point);
+	write((long int)num, point);
 }
 
 void SevenSeg::write(long int num,int point){
 
-  if(_timerID==-1){  // No timer assigned. MUX once.
+	if(_timerID==-1){  // No timer assigned. MUX once.
 
-    // Compute the maximum positive and negative numbers possible to display
-    // (TBD: Move this to a computation done on pin assignments?)
-    long int maxNegNum=1;
-    for(int i=1;i<=_numOfDigits-1;i++) maxNegNum*=10;
-    long int maxPosNum=10*maxNegNum-1;
-    maxNegNum=-maxNegNum+1;
+		// Compute the maximum positive and negative numbers possible to display
+		// (TBD: Move this to a computation done on pin assignments?)
+		long int maxNegNum=1;
+		for(int i=1;i<=_numOfDigits-1;i++) maxNegNum*=10;
+		long int maxPosNum=10*maxNegNum-1;
+		maxNegNum=-maxNegNum+1;
 
-    // TBD: Change to displaying OL (overload) or ---- or similar?
-    if(num>maxPosNum) num=maxPosNum;
-    if(num<maxNegNum) num=maxNegNum;
+		// TBD: Change to displaying OL (overload) or ---- or similar?
+		if(num>maxPosNum) num=maxPosNum;
+		if(num<maxNegNum) num=maxNegNum;
 
-    if(point==0){    // Don't display decimal point if zero decimals used
-      point=_numOfDigits;          // value if-sentence won't trigger on
-    } else {
-      point=_numOfDigits-point-1;  // Map number of decimal points to digit number
-    }
+		if(point==0){    // Don't display decimal point if zero decimals used
+			point=_numOfDigits;          // value if-sentence won't trigger on
+		} else {
+			point=_numOfDigits-point-1;  // Map number of decimal points to digit number
+		}
 
-    // TBD: Fix minus
+		// TBD: Fix minus
 
-    int minus=0;
-    if(num<0){
-      num*=-1;
-      minus=1;
-    }
+		int minus=0;
+		if(num<0){
+			num*=-1;
+			minus=1;
+		}
 
-/* USED IN v1.0 - DOESN'T SUPPRESS LEADING ZEROS
+		/* USED IN v1.0 - DOESN'T SUPPRESS LEADING ZEROS
     for(int i=_numOfDigits-1;i>=0;i--){
       changeDigit(i);
       int nextDigit = num % 10L;
@@ -342,70 +338,70 @@ void SevenSeg::write(long int num,int point){
       clearDP();
       execDelay(_digitOffDelay);
     }
-*/
+		 */
 
-    for(int i=_numOfDigits-1;i>=0;i--){
-        changeDigit(i);
-        int nextDigit = num % 10L;
-        if(num || i>point-1 || i==_numOfDigits-1){
-            writeDigit(nextDigit);
-        } else if(minus){
-            writeDigit('-');
-            minus=0;
-        } else {
-            writeDigit(' ');
-        }
-        if(point==i) setDP();
-        num /= 10;
-        execDelay(_digitOnDelay);
-        writeDigit(' ');
-        clearDP();
-        execDelay(_digitOffDelay);
-    }
+		for(int i=_numOfDigits-1;i>=0;i--){
+			changeDigit(i);
+			int nextDigit = num % 10L;
+			if(num || i>point-1 || i==_numOfDigits-1){
+				writeDigit(nextDigit);
+			} else if(minus){
+				writeDigit('-');
+				minus=0;
+			} else {
+				writeDigit(' ');
+			}
+			if(point==i) setDP();
+			num /= 10;
+			execDelay(_digitOnDelay);
+			writeDigit(' ');
+			clearDP();
+			execDelay(_digitOffDelay);
+		}
 
-  } else {  // Use timer
+	} else {  // Use timer
 
-    if(point==0){    // Don't display decimal point if zero decimals used
-      point=_numOfDigits;          // value if-sentence won't trigger on
-    } else {
-      point=_numOfDigits-point-1;  // Map number of decimal points to digit number
-    }
+		if(point==0){    // Don't display decimal point if zero decimals used
+			point=_numOfDigits;          // value if-sentence won't trigger on
+		} else {
+			point=_numOfDigits-point-1;  // Map number of decimal points to digit number
+		}
 
-	_writeMode = 'p';	// Tell interruptAction that write(int,int) was used (fixed point).
-	_writeInt = iaLimitInt(num);	// Tell interruptAction to write this number ...
-        _writePoint = point;	// ... with this fixed point
-  }
+		_writeMode = 'p';	// Tell interruptAction that write(int,int) was used (fixed point).
+		_writeInt = iaLimitInt(num);	// Tell interruptAction to write this number ...
+		_writePoint = point;	// ... with this fixed point
+	}
 
 }
 
 // Extracts digit number "digit" from "number" for use with ia - interruptAction
 char SevenSeg::iaExtractDigit(long int number, int digit, int point){
 
-/* OLD VERSION WITHOU ZERO SUPPRESION (v1.0)
+	/* OLD VERSION WITHOU ZERO SUPPRESION (v1.0)
   if(number<0){
     if(digit==0) return '-';
     number*=-1;
   }
   for(int i=0;i<_numOfDigits-digit-1;i++) number/=10L;
   return (char)((number%10L)+48L);
-*/
+	 */
 
-  long int old_number = number;
-  int minus = 0;
-  if(number<0){
-    number*=-1;
-    minus = 1;
-  }
+	long int old_number = number;
+	int minus = 0;
+	if(number<0){
+		number*=-1;
+		minus = 1;
+	}
 
-  if(digit!=_numOfDigits-1){
-    for(int i=0;i<_numOfDigits-digit-1;i++) number/=10L;
-  }
+	if(digit!=_numOfDigits-1){
+		for(int i=0;i<_numOfDigits-digit-1;i++) number/=10L;
+	}
 
-  if(digit>point-1 || digit==_numOfDigits-1 || number!=0) return (char)((number%10L)+48L);
-  else {
-    if(iaExtractDigit(old_number,digit+1,point)!='-' && iaExtractDigit(old_number,digit+1,point)!=' ' && minus) return '-';
-    else return ' ';
-  }
+	if(digit>point-1 || digit==_numOfDigits-1 || number!=0) return (char)((number%10L)+48L);
+	else {
+		if(iaExtractDigit(old_number,digit+1,point)!='-' && iaExtractDigit(old_number,digit+1,point)!=' ' && minus) return '-';
+		else return ' ';
+	}
 
 }
 
@@ -413,324 +409,324 @@ char SevenSeg::iaExtractDigit(long int number, int digit, int point){
 long int SevenSeg::iaLimitInt(long int number){
 
 
-    // Compute the maximum positive and negative numbers possible to display
-    // (TBD: Move this to a computation done on pin assignments?)
-    long int maxNegNum=1;
-    for(int i=1;i<=_numOfDigits-1;i++) maxNegNum*=10;
-    long int maxPosNum=10*maxNegNum-1;
-    maxNegNum=-maxNegNum+1;
+	// Compute the maximum positive and negative numbers possible to display
+	// (TBD: Move this to a computation done on pin assignments?)
+	long int maxNegNum=1;
+	for(int i=1;i<=_numOfDigits-1;i++) maxNegNum*=10;
+	long int maxPosNum=10*maxNegNum-1;
+	maxNegNum=-maxNegNum+1;
 
-    // TBD: Change to displaying OL (overload) or ---- or similar?
-    if(number>maxPosNum) number=maxPosNum;
-    if(number<maxNegNum) number=maxNegNum;
+	// TBD: Change to displaying OL (overload) or ---- or similar?
+	if(number>maxPosNum) number=maxPosNum;
+	if(number<maxNegNum) number=maxNegNum;
 
-    return number;
+	return number;
 
 }
 
 void SevenSeg::write(int num){
-  write((long int)num);
+	write((long int)num);
 }
 
 void SevenSeg::write(long int num){
 
-  if(_timerID==-1){  // No timer assigned. MUX once.
+	if(_timerID==-1){  // No timer assigned. MUX once.
 
-    write(num,0);
+		write(num,0);
 
-  } else {  // Use timer
+	} else {  // Use timer
 
-	_writeMode = 'i';	// Tell interruptAction that write(int) is used.
-	_writeInt = iaLimitInt(num);	// Tell interruptAction to write this int
-  }
+		_writeMode = 'i';	// Tell interruptAction that write(int) is used.
+		_writeInt = iaLimitInt(num);	// Tell interruptAction to write this int
+	}
 
 }
 
 void SevenSeg::write(char *str){
 
-  if(_timerID==-1){  // No timer assigned. MUX once.
+	if(_timerID==-1){  // No timer assigned. MUX once.
 
-    int i=0;
-    int j=0;
-    clearColon();
-    while(str[i]!='\0'){
-      changeDigit(j);
-      writeDigit(str[i]);
-      if(str[i+1]=='.'){
-        setDP();
-        i++;
-      }
-      execDelay(_digitOnDelay);
-      writeDigit(' ');
-      clearDP();
-      execDelay(_digitOffDelay);
-      i++;
-      j++;
-    }
+		int i=0;
+		int j=0;
+		clearColon();
+		while(str[i]!='\0'){
+			changeDigit(j);
+			writeDigit(str[i]);
+			if(str[i+1]=='.'){
+				setDP();
+				i++;
+			}
+			execDelay(_digitOnDelay);
+			writeDigit(' ');
+			clearDP();
+			execDelay(_digitOffDelay);
+			i++;
+			j++;
+		}
 
-  } else {  // Use timer
-	_writeMode = 's';	// Tell interruptAction that write(char*) is used.
-	_writeStr = str;	// Tell interruptAction to write this string
-  }
+	} else {  // Use timer
+		_writeMode = 's';	// Tell interruptAction that write(char*) is used.
+		_writeStr = str;	// Tell interruptAction to write this string
+	}
 
 
 }
 
 void SevenSeg::write(String str){
 
-  if(_timerID==-1){  // No timer assigned. MUX once.
+	if(_timerID==-1){  // No timer assigned. MUX once.
 
-    int i=0;
-    int j=0;
-    clearColon();
-    while(i<str.length()){
-      changeDigit(j);
-      writeDigit(str[i]);
-      if(str[i+1]=='.'){
-        setDP();
-        i++;
-      }
-      execDelay(_digitOnDelay);
-      writeDigit(' ');
-      clearDP();
-      execDelay(_digitOffDelay);
-      i++;
-      j++;
-    }
+		int i=0;
+		int j=0;
+		clearColon();
+		while(i<str.length()){
+			changeDigit(j);
+			writeDigit(str[i]);
+			if(str[i+1]=='.'){
+				setDP();
+				i++;
+			}
+			execDelay(_digitOnDelay);
+			writeDigit(' ');
+			clearDP();
+			execDelay(_digitOffDelay);
+			i++;
+			j++;
+		}
 
-  } else {  // Use timer
+	} else {  // Use timer
 
-	_writeMode = 'o';	// Tell interruptAction that write(String) is used.
-	_writeStrObj = str;	// Tell interruptAction to write this string
-  }
+		_writeMode = 'o';	// Tell interruptAction that write(String) is used.
+		_writeStrObj = str;	// Tell interruptAction to write this string
+	}
 
 
 }
 
 void SevenSeg::write(double num, int point){
-    for(int i=0;i<point;i++) num*=10;
-    long int intNum = (long int) num;
-    double remainder = num - intNum;
-    if(remainder>=0.5 && num>0) intNum++;
-    if(remainder<=0.5 && num<0) intNum--;
-    write(intNum,point);
+	for(int i=0;i<point;i++) num*=10;
+	long int intNum = (long int) num;
+	double remainder = num - intNum;
+	if(remainder>=0.5 && num>0) intNum++;
+	if(remainder<=0.5 && num<0) intNum--;
+	write(intNum,point);
 }
 
 void SevenSeg::write(double num){
 
-    long int intNum;
-    int point = 0;
+	long int intNum;
+	int point = 0;
 
-    if(num>-1 && num<1){
+	if(num>-1 && num<1){
 
-        for(point = 0; point<_numOfDigits-1; point++) num *= 10;
+		for(point = 0; point<_numOfDigits-1; point++) num *= 10;
 
-        intNum = (long int)(num + 0.5 - (num<0));
+		intNum = (long int)(num + 0.5 - (num<0));
 
-        if(intNum < 0){
-            num /= 10;
-            point--;
-            intNum = (long int)(num + 0.5 - (num<0));
-        }
+		if(intNum < 0){
+			num /= 10;
+			point--;
+			intNum = (long int)(num + 0.5 - (num<0));
+		}
 
-    } else {
+	} else {
 
-        int digitsBeforeDecimal = 1;
-        for(long int i = (long int) num; i != 0; i /= 10) digitsBeforeDecimal++;
+		int digitsBeforeDecimal = 1;
+		for(long int i = (long int) num; i != 0; i /= 10) digitsBeforeDecimal++;
 
-        point = _numOfDigits - digitsBeforeDecimal - (num<0) + 1;
-        for(int d=0; d<point; d++) num *= 10;
+		point = _numOfDigits - digitsBeforeDecimal - (num<0) + 1;
+		for(int d=0; d<point; d++) num *= 10;
 
-        intNum = (long int)(num + 0.5 - (num<0));
+		intNum = (long int)(num + 0.5 - (num<0));
 
-    }
+	}
 
-    if(_timerID==-1){
+	if(_timerID==-1){
 
-        write(intNum,point);
+		write(intNum,point);
 
-    } else { // user timer
+	} else { // user timer
 
-        // Adapting to another format
-        point=point+1-_numOfDigits;
+		// Adapting to another format
+		point=point+1-_numOfDigits;
 
-        _writeMode='p';
-        _writePoint=-point;
-        _writeInt=(long int)num;
+	_writeMode='p';
+	_writePoint=-point;
+	_writeInt=(long int)num;
 
-    }
+	}
 
 }
 
 void SevenSeg::updDelay(){
 
-  // On-time for each display is total time spent per digit times the duty cycle. The
-  // off-time is the rest of the cycle for the given display.
+	// On-time for each display is total time spent per digit times the duty cycle. The
+	// off-time is the rest of the cycle for the given display.
 
-  long int temp = _digitDelay;		// Stored into long int since temporary variable gets larger than 32767
-  temp *= _dutyCycle;			// Multiplication in this way to prevent multiplying two "shorter" ints.
-  temp /= 100;				// Division after multiplication to minimize round-off errors.
-  _digitOnDelay=temp;
-  _digitOffDelay=_digitDelay-_digitOnDelay;
+	long int temp = _digitDelay;		// Stored into long int since temporary variable gets larger than 32767
+	temp *= _dutyCycle;			// Multiplication in this way to prevent multiplying two "shorter" ints.
+	temp /= 100;				// Division after multiplication to minimize round-off errors.
+	_digitOnDelay=temp;
+	_digitOffDelay=_digitDelay-_digitOnDelay;
 
-  if(_timerID!=-1){
-    // Artefacts in duty cycle control appeared when these values changed while interrupts happening (A kind of stepping in brightness appeared)
-    cli();
-    _timerCounterOnEnd=(_digitOnDelay/16)-1;
-    _timerCounterOffEnd=(_digitOffDelay/16)-1;
-    if(_digitOnDelay==0) _timerCounterOnEnd=0;
-    if(_digitOffDelay==0) _timerCounterOffEnd=0;
-//    _timerCounter=0;
-    sei();
-  }
+	if(_timerID!=-1){
+		// Artefacts in duty cycle control appeared when these values changed while interrupts happening (A kind of stepping in brightness appeared)
+		cli();
+		_timerCounterOnEnd=(_digitOnDelay/16)-1;
+		_timerCounterOffEnd=(_digitOffDelay/16)-1;
+		if(_digitOnDelay==0) _timerCounterOnEnd=0;
+		if(_digitOffDelay==0) _timerCounterOffEnd=0;
+		//    _timerCounter=0;
+		sei();
+	}
 }
 
 void SevenSeg::interruptAction(){
 
-  // Increment the library's counter
-  _timerCounter++;
+	// Increment the library's counter
+	_timerCounter++;
 
-  // Finished with on-part. Turn off digit, and switch to the off-phase (_timerPhase=0)
-  if((_timerCounter>=_timerCounterOnEnd)&&(_timerPhase==1)){
-    _timerCounter=0;
-    _timerPhase=0;
+	// Finished with on-part. Turn off digit, and switch to the off-phase (_timerPhase=0)
+	if((_timerCounter>=_timerCounterOnEnd)&&(_timerPhase==1)){
+		_timerCounter=0;
+		_timerPhase=0;
 
-    writeDigit(' ');
+		writeDigit(' ');
 
-    // If a write mode using . is used it is reasonable to assume that DP exists. Clear it (eventhough it might not be on this digit).
-    if(_writeMode=='p'||_writeMode=='.'||_writeMode=='s') clearDP();
-    if(_writeMode==':') clearColon();
+		// If a write mode using . is used it is reasonable to assume that DP exists. Clear it (eventhough it might not be on this digit).
+		if(_writeMode=='p'||_writeMode=='.'||_writeMode=='s') clearDP();
+		if(_writeMode==':') clearColon();
 
-  }
+	}
 
-  // Finished with the off-part. Switch to next digit and turn it on.
-  if((_timerCounter>=_timerCounterOffEnd)&&(_timerPhase==0)){
-    _timerCounter=0;
-    _timerPhase=1;
+	// Finished with the off-part. Switch to next digit and turn it on.
+	if((_timerCounter>=_timerCounterOffEnd)&&(_timerPhase==0)){
+		_timerCounter=0;
+		_timerPhase=1;
 
-    _timerDigit++;
+		_timerDigit++;
 
-    if(_timerDigit>=_numOfDigits){
-      if(_symbDigPin!=-1 && _timerDigit==_numOfDigits){  // Symbol pin in use. Let _timerDigit=_numOfDigits be used for symbol mux.
-      } else { // Finished muxing symbol digit, or symbol pin not in use
-        _timerDigit=0;
-      }
-    }
+		if(_timerDigit>=_numOfDigits){
+			if(_symbDigPin!=-1 && _timerDigit==_numOfDigits){  // Symbol pin in use. Let _timerDigit=_numOfDigits be used for symbol mux.
+			} else { // Finished muxing symbol digit, or symbol pin not in use
+				_timerDigit=0;
+			}
+		}
 
-    if(_timerDigit==_numOfDigits) changeDigit('s');
-    else changeDigit(_timerDigit);
+		if(_timerDigit==_numOfDigits) changeDigit('s');
+		else changeDigit(_timerDigit);
 
-    if(_timerDigit!=_numOfDigits){
+		if(_timerDigit!=_numOfDigits){
 
-        if(_writeMode=='p'){	// Fixed point writing (or float)
-          writeDigit(iaExtractDigit(_writeInt,_timerDigit,_writePoint));
-          if(_writePoint==_timerDigit && _writePoint!=_numOfDigits-1) setDP();
-        }
+			if(_writeMode=='p'){	// Fixed point writing (or float)
+				writeDigit(iaExtractDigit(_writeInt,_timerDigit,_writePoint));
+				if(_writePoint==_timerDigit && _writePoint!=_numOfDigits-1) setDP();
+			}
 
-        if(_writeMode=='i'){	// Integer writing
-          writeDigit(iaExtractDigit(_writeInt,_timerDigit,_numOfDigits));
-        }
+			if(_writeMode=='i'){	// Integer writing
+				writeDigit(iaExtractDigit(_writeInt,_timerDigit,_numOfDigits));
+			}
 
-        if(_writeMode==':'||_writeMode=='.'||_writeMode=='_'){
+			if(_writeMode==':'||_writeMode=='.'||_writeMode=='_'){
 
-          // colon through symbpin? 1 if yes.
-          int symbColon = (_symbDigPin!=-1);
+				// colon through symbpin? 1 if yes.
+				int symbColon = (_symbDigPin!=-1);
 
-          if(_timerDigit==_numOfDigits){	// Symbol digit
-            setColon();
-          } else {
-            writeDigit(iaExtractDigit(_writeInt,_timerDigit,_numOfDigits));
-            if(_writeMode==':' && !symbColon) setColon();
-            if((_writeMode=='.')&&(_timerDigit==_numOfDigits-3)) setDP();  // Only set "." in the right place
-          }
+				if(_timerDigit==_numOfDigits){	// Symbol digit
+					setColon();
+				} else {
+					writeDigit(iaExtractDigit(_writeInt,_timerDigit,_numOfDigits));
+					if(_writeMode==':' && !symbColon) setColon();
+					if((_writeMode=='.')&&(_timerDigit==_numOfDigits-3)) setDP();  // Only set "." in the right place
+				}
 
-        }
+			}
 
-        if(_writeMode=='s'){
+			if(_writeMode=='s'){
 
-          // This algorithm must count to the correct letter i in _writeStr for digit j, since the two may be unmatched
-          // and it is impossible to know which letter to write without counting
-          int i=0; // which digit
-          int j=0; // which digit have it counted to
-          while(_writeStr[i]!='\0' && j<_timerDigit){
-            if(_writeStr[i+1]=='.'){
-              i++;
-            }
-            i++;
-            j++;
-          }
-          writeDigit(_writeStr[i]);
-          if(_writeStr[i+1]=='.') setDP();
+				// This algorithm must count to the correct letter i in _writeStr for digit j, since the two may be unmatched
+				// and it is impossible to know which letter to write without counting
+				int i=0; // which digit
+				int j=0; // which digit have it counted to
+				while(_writeStr[i]!='\0' && j<_timerDigit){
+					if(_writeStr[i+1]=='.'){
+						i++;
+					}
+					i++;
+					j++;
+				}
+				writeDigit(_writeStr[i]);
+				if(_writeStr[i+1]=='.') setDP();
 
-        }
+			}
 
-        if(_writeMode=='o'){
+			if(_writeMode=='o'){
 
-          // This algorithm must count to the correct letter i in _writeStr for digit j, since the two may be unmatched
-          // and it is impossible to know which letter to write without counting
-          int i=0; // which digit
-          int j=0; // which digit have it counted to
-          while(i<_writeStrObj.length() && j<_timerDigit){
-            if(_writeStrObj[i+1]=='.'){
-              i++;
-            }
-            i++;
-            j++;
-          }
-          writeDigit(_writeStrObj[i]);
-          if(_writeStrObj[i+1]=='.') setDP();
+				// This algorithm must count to the correct letter i in _writeStr for digit j, since the two may be unmatched
+				// and it is impossible to know which letter to write without counting
+				int i=0; // which digit
+				int j=0; // which digit have it counted to
+				while(i<_writeStrObj.length() && j<_timerDigit){
+					if(_writeStrObj[i+1]=='.'){
+						i++;
+					}
+					i++;
+					j++;
+				}
+				writeDigit(_writeStrObj[i]);
+				if(_writeStrObj[i+1]=='.') setDP();
 
-        }
-    }
+			}
+		}
 
-  }
+	}
 
 }
 
 void SevenSeg::changeDigit(int digit){
 
 
-  // Turn off all digits/segments first.
-  // If you swith on a new digit before turning off the segments you will get
-  // a slight shine of the "old" number in the "new" digit.
-  clearDisp();
-  digitalWrite(_dig[digit], _digOn);
+	// Turn off all digits/segments first.
+	// If you swith on a new digit before turning off the segments you will get
+	// a slight shine of the "old" number in the "new" digit.
+	clearDisp();
+	digitalWrite(_dig[digit], _digOn);
 
 }
 
 void SevenSeg::changeDigit(char digit){
 
-  if(digit=='s'){
-    // change to the symbol digit
-    clearDisp();
-    digitalWrite(_symbDigPin, _digOn);
-    digitalWrite(_colonSegPin, _colonState);
-    digitalWrite(_colonSegLPin, _colonState);
-    digitalWrite(_aposSegPin, _aposState);
-  }
+	if(digit=='s'){
+		// change to the symbol digit
+		clearDisp();
+		digitalWrite(_symbDigPin, _digOn);
+		digitalWrite(_colonSegPin, _colonState);
+		digitalWrite(_colonSegLPin, _colonState);
+		digitalWrite(_aposSegPin, _aposState);
+	}
 
-  if(digit==' '){
-    clearDisp();
-  }
+	if(digit==' '){
+		clearDisp();
+	}
 
 }
 
 void SevenSeg::setDPPin(int DPPin){
 
-  _DP=DPPin;
-  pinMode(_DP, OUTPUT);
-
+	_DP=DPPin;
+	pinMode(_DP, OUTPUT);
+	_segCnt=DIGITS_COUNT+1;
 }
 
 void SevenSeg::setDP(){
 
-  digitalWrite(_DP, _segOn);
+	digitalWrite(_DP, _segOn);
 
 }
 
 void SevenSeg::clearDP(){
 
-  digitalWrite(_DP, _segOff);
+	digitalWrite(_DP, _segOff);
 
 }
 /*
@@ -808,28 +804,28 @@ I've decided to treat the symbols in the following way
 	setApos();
 	clearApos();
 
-*/
+ */
 
 void SevenSeg::setColonPin(int colonPin){
-  _colonSegPin=colonPin;
-  pinMode(_colonSegPin,OUTPUT);
-  digitalWrite(_colonSegPin, _colonState);
+	_colonSegPin=colonPin;
+	pinMode(_colonSegPin,OUTPUT);
+	digitalWrite(_colonSegPin, _colonState);
 }
 
 void SevenSeg::setSymbPins(int digPin, int segUCPin, int segLCPin, int segAPin){
-  _colonSegPin=segUCPin;
-  _colonSegLPin=segLCPin;
-  _aposSegPin=segAPin;
-  _symbDigPin=digPin;
-  _aposState=_segOff;
-  _colonState=_segOff;
-  pinMode(_colonSegPin,OUTPUT);
-  pinMode(_colonSegLPin,OUTPUT);
-  pinMode(_aposSegPin,OUTPUT);
-  pinMode(_symbDigPin,OUTPUT);
-  digitalWrite(_colonSegPin, _colonState);
-  digitalWrite(_colonSegLPin, _colonState);
-  digitalWrite(_aposSegPin, _aposState);
+	_colonSegPin=segUCPin;
+	_colonSegLPin=segLCPin;
+	_aposSegPin=segAPin;
+	_symbDigPin=digPin;
+	_aposState=_segOff;
+	_colonState=_segOff;
+	pinMode(_colonSegPin,OUTPUT);
+	pinMode(_colonSegLPin,OUTPUT);
+	pinMode(_aposSegPin,OUTPUT);
+	pinMode(_symbDigPin,OUTPUT);
+	digitalWrite(_colonSegPin, _colonState);
+	digitalWrite(_colonSegLPin, _colonState);
+	digitalWrite(_aposSegPin, _aposState);
 }
 
 /*
@@ -857,205 +853,252 @@ and connect their other terminal to one segment pin each to make the mentioned c
 The behaviour set/clear behaviour of these digits are a bit different in this case. The set/clear-funciton
 only sets a flag to on or off. In order to type the characters you must mux to the symbol digit by issuing
 changeDigit('s'). This function will light up the appropriate symbols in accordance with the flags.
-*/
+ */
 
 void SevenSeg::setColon(){
-  _colonState=_segOn;
-  if(_symbDigPin==-1){
-    digitalWrite(_colonSegPin, _segOn);
-  }
+	_colonState=_segOn;
+	if(_symbDigPin==-1){
+		digitalWrite(_colonSegPin, _segOn);
+	}
 }
 
 void SevenSeg::clearColon(){
-  _colonState=_segOff;
-  if(_symbDigPin==-1){
-    digitalWrite(_colonSegPin, _segOff);
-  }
+	_colonState=_segOff;
+	if(_symbDigPin==-1){
+		digitalWrite(_colonSegPin, _segOff);
+	}
 }
 
 void SevenSeg::setApos(){
-  _aposState=_segOn;
-  if(_symbDigPin==-1){
-    digitalWrite(_aposSegPin, _segOn);
-  }
+	_aposState=_segOn;
+	if(_symbDigPin==-1){
+		digitalWrite(_aposSegPin, _segOn);
+	}
 }
 
 void SevenSeg::clearApos(){
-  _aposState=_segOff;
-  if(_symbDigPin==-1){
-    digitalWrite(_aposSegPin, _segOff);
-  }
+	_aposState=_segOff;
+	if(_symbDigPin==-1){
+		digitalWrite(_aposSegPin, _segOff);
+	}
+}
+
+#define LOG(msg) Serial.print(msg)
+#define LN() Serial.println()
+
+// Write segments from binary bits
+void SevenSeg::writeSeg(unsigned char bits) {
+	LOG("bits=PGFEDCBA");LN();
+	LOG("     ");
+	for(int s=0;s<DIGITS_COUNT;s++) {
+
+		if((bits&0b00000001)!=0) {
+			LOG('1');
+			digitalWrite(_SEG[s], _segOn);
+		} else {
+			LOG('0');
+		}
+		bits>>=1;
+	}
+	LN();
+}
+
+void SevenSeg::writeAll(int segVal) {
+	// Turn off all LEDs first to avoid running current through too many LEDs at once.
+	for(int s=0;s<_segCnt;s++) {
+		digitalWrite(_SEG[s], segVal);
+	}
 }
 
 void SevenSeg::writeDigit(int digit){
+	writeAll(_segOff);
 
-  // Turn off all LEDs first to avoid running current through too many LEDs at once.
-  digitalWrite(_A, _segOff);
-  digitalWrite(_B, _segOff);
-  digitalWrite(_C, _segOff);
-  digitalWrite(_D, _segOff);
-  digitalWrite(_E, _segOff);
-  digitalWrite(_F, _segOff);
-  digitalWrite(_G, _segOff);
+	if(digit==1){
+		//         PGFEDCBA
+		writeSeg(0b00000110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+	}
 
-  if(digit==1){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-  }
+	if(digit==2){
+		//         PGFEDCBA
+		writeSeg(0b01011011);
+		//    digitalWrite(_A, _segOn);
+		//    digitalWrite(_B, _segOn);
+		//    digitalWrite(_D, _segOn);
+		//    digitalWrite(_E, _segOn);
+		//    digitalWrite(_G, _segOn);
+	}
 
-  if(digit==2){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_G, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_D, _segOn);
-  }
+	if(digit==3){
+		//         PGFEDCBA
+		writeSeg(0b01001111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit==3){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_G, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-  }
+	if(digit==4){
+		//         PGFEDCBA
+		writeSeg(0b01100110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit==4){
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-  }
+	if(digit==5){
+		//         PGFEDCBA
+		writeSeg(0b01101101);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit==5){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-  }
+	if(digit==6){
+		//         PGFEDCBA
+		writeSeg(0b01111101);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit==6){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit==7){
+		//         PGFEDCBA
+		writeSeg(0b00000111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+	}
 
-  if(digit==7){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-  }
+	if(digit==8){
+		//         PGFEDCBA
+		writeSeg(0b01111111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit==8){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit==9){
+		//         PGFEDCBA
+		writeSeg(0b01101111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit==9){
-    digitalWrite(_G, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-  }
-
-  if(digit==0){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit==0){
+		//         PGFEDCBA
+		writeSeg(0b00111111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
 }
 
 void SevenSeg::writeDigit(char digit){
 
-  // Turn off all LEDs first. Run writeDigit(' ') to clear digit.
-  digitalWrite(_A, _segOff);
-  digitalWrite(_B, _segOff);
-  digitalWrite(_C, _segOff);
-  digitalWrite(_D, _segOff);
-  digitalWrite(_E, _segOff);
-  digitalWrite(_F, _segOff);
-  digitalWrite(_G, _segOff);
+	// Turn off all LEDs first. Run writeDigit(' ') to clear digit.
+	writeAll(_segOff);
 
-  if(digit=='-'){
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='-'){
+		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='\370'){ // ASCII code 248 or degree symbol: '°'
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='\370'){ // ASCII code 248 or degree symbol: '°'
+		//         PGFEDCBA
+		writeSeg(0b00000000);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  // Digits are numbers. Write with writeDigit(int)
-  if(digit>=48&&digit<=57)  writeDigit(digit-48);
+	// Digits are numbers. Write with writeDigit(int)
+	if(digit>=48&&digit<=57)  writeDigit(digit-48);
 
-  // Digits are small caps letters. Capitalize.
-  if(digit>=97&&digit<=122) digit-=32;
+	// Digits are small caps letters. Capitalize.
+	if(digit>=97&&digit<=122) digit-=32;
 
-  if(digit=='A'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='A'){
+		//         PGFEDCBA
+		writeSeg(0b01110111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='B'){
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='B'){
+		//         PGFEDCBA
+		writeSeg(0b01111100);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='C'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit=='C'){
+		//         PGFEDCBA
+		writeSeg(0b00111001);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='D'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='D'){
+		//         PGFEDCBA
+		writeSeg(0b01011110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='E'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='E'){
+		//         PGFEDCBA
+		writeSeg(0b01111001);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='F'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='F'){
+		//         PGFEDCBA
+		writeSeg(0b01110001);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='G'){
-/*
+	if(digit=='G'){
+		/*
     digitalWrite(_A, _segOn);
     digitalWrite(_B, _segOn);
     digitalWrite(_C, _segOn);
@@ -1063,158 +1106,198 @@ void SevenSeg::writeDigit(char digit){
     digitalWrite(_E, _segOn);
     digitalWrite(_G, _segOn);
     // TBD: Really write G like a 9, when it can be written as almost G?
-*/
-    digitalWrite(_A, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+		 */
+		//         PGFEDCBA
+		writeSeg(0b00111101);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='H'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='H'){
+		//         PGFEDCBA
+		writeSeg(0b01110110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='I'){
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit=='I'){
+		//         PGFEDCBA
+		writeSeg(0b00110000);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='J'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-  }
+	if(digit=='J'){
+		//         PGFEDCBA
+		writeSeg(0b00011110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+	}
 
-  if(digit=='K'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='K'){
+		//         PGFEDCBA
+		writeSeg(0b01110110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='L'){
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit=='L'){
+		//         PGFEDCBA
+		writeSeg(0b00111000);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='M'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_E, _segOn);
-  }
+	if(digit=='M'){
+		//         PGFEDCBA
+		writeSeg(0b00010101);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_E, _segOn);
+	}
 
-  if(digit=='N'){
-    digitalWrite(_C, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='N'){
+		//         PGFEDCBA
+		writeSeg(0b01010100);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='O'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit=='O'){
+		//         PGFEDCBA
+		writeSeg(0b00111111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='P'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='P'){
+		//         PGFEDCBA
+		writeSeg(0b01110011);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='Q'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='Q'){
+		//         PGFEDCBA
+		writeSeg(0b01100111);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='R'){
-    digitalWrite(_E, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='R'){
+		//         PGFEDCBA
+		writeSeg(0b01010000);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='S'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='S'){
+		//         PGFEDCBA
+		writeSeg(0b01101101);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='T'){
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='T'){
+		//         PGFEDCBA
+		writeSeg(0b01111000);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
- if(digit=='U'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit=='U'){
+		//         PGFEDCBA
+		writeSeg(0b00111110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='V'){
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-  }
+	if(digit=='V'){
+		//         PGFEDCBA
+		writeSeg(0b00011100);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+	}
 
-  if(digit=='W'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_F, _segOn);
-  }
+	if(digit=='W'){
+		//         PGFEDCBA
+		writeSeg(0b00101010);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_F, _segOn);
+	}
 
-  if(digit=='X'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='X'){
+		//         PGFEDCBA
+		writeSeg(0b01110110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='Y'){
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_F, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='Y'){
+		//         PGFEDCBA
+		writeSeg(0b01101110);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_C, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_F, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 
-  if(digit=='Z'){
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_G, _segOn);
-  }
+	if(digit=='Z'){
+		//         PGFEDCBA
+		writeSeg(0b01011011);
+//		digitalWrite(_A, _segOn);
+//		digitalWrite(_B, _segOn);
+//		digitalWrite(_D, _segOn);
+//		digitalWrite(_E, _segOn);
+//		digitalWrite(_G, _segOn);
+	}
 }
 
 void SevenSeg::execDelay(int usec){
 
-  if(usec!=0){	// delay() and delayMicroseconds() don't handle 0 delay
+	if(usec!=0){	// delay() and delayMicroseconds() don't handle 0 delay
 
-    if(usec<=16383)	delayMicroseconds(usec);	// maximum value for delayMicroseconds();
-    else		delay(usec/1000);
+		if(usec<=16383)	delayMicroseconds(usec);	// maximum value for delayMicroseconds();
+		else		delay(usec/1000);
 
-  }
+	}
 
 }
 /*
@@ -1225,7 +1308,7 @@ void SevenSeg::execDelay(int usec){
 
 void SevenSeg::setTimer(int timerID){
 
-/*
+	/*
   Assigns timer0, timer1 or timer2 solely to the task of multiplexing the display (depending on
   the value of timerNumber).
 
@@ -1246,73 +1329,73 @@ void SevenSeg::setTimer(int timerID){
     max delay for something to happen = 16us * (65535+1) = 1.04s
 
   which should be more than sufficient if you want to be able to look at your display.
-*/
+	 */
 
-  _timerID = timerID;
+	_timerID = timerID;
 
 }
 
 void SevenSeg::clearTimer(){
 
-  stopTimer();
-  _timerID = -1;
+	stopTimer();
+	_timerID = -1;
 
 }
 
 void SevenSeg::startTimer(){
 
-  cli();  // Temporarily stop interrupts
+	cli();  // Temporarily stop interrupts
 
-  // See registers in ATmega328 datasheet
+	// See registers in ATmega328 datasheet
 
-  if(_timerID==0){
-    TCCR0A = 0;
-    TCCR0B = 0;
-    TCNT0 = 0;					// Initialize counter value to 0
-    OCR0A = 3;					// Set Compare Match Register to 3
-    TCCR0A |= (1<<WGM01);			// Turn on CTC mode
-    TCCR0B |= (1<<CS01) | (1<<CS00);		// Set prescaler to 64
-    TIMSK0 |= (1<<OCIE0A);			// Enable timer compare interrupt
-  }
+	if(_timerID==0){
+		TCCR0A = 0;
+		TCCR0B = 0;
+		TCNT0 = 0;					// Initialize counter value to 0
+		OCR0A = 3;					// Set Compare Match Register to 3
+		TCCR0A |= (1<<WGM01);			// Turn on CTC mode
+		TCCR0B |= (1<<CS01) | (1<<CS00);		// Set prescaler to 64
+		TIMSK0 |= (1<<OCIE0A);			// Enable timer compare interrupt
+	}
 
-  if(_timerID==1){
-    TCCR1A = 0;
-    TCCR1B = 0;
-    TCNT1  = 0;					// Initialize counter value to 0
-    OCR1A = 3;					// Set compare Match Register to 3
-    TCCR1B |= (1 << WGM12);			// Turn on CTC mode
-    TCCR1B |= (1 << CS11) | (1 << CS10);	// Set prescaler to 64
-    TIMSK1 |= (1 << OCIE1A);			// Enable timer compare interrupt
-  }
+	if(_timerID==1){
+		TCCR1A = 0;
+		TCCR1B = 0;
+		TCNT1  = 0;					// Initialize counter value to 0
+		OCR1A = 3;					// Set compare Match Register to 3
+		TCCR1B |= (1 << WGM12);			// Turn on CTC mode
+		TCCR1B |= (1 << CS11) | (1 << CS10);	// Set prescaler to 64
+		TIMSK1 |= (1 << OCIE1A);			// Enable timer compare interrupt
+	}
 
-  if(_timerID==2){
-    TCCR2A = 0;
-    TCCR2B = 0;
-    TCNT2  = 0;					// Initialize counter value to 0
-    OCR2A = 3;					// Set Compare Match Register to 3
-    TCCR2A |= (1 << WGM21);			// Turn on CTC mode
-    TCCR2B |= (1 << CS22);			// Set prescaler to 64
-    TIMSK2 |= (1 << OCIE2A);			// Enable timer compare interrupt
-  }
+	if(_timerID==2){
+		TCCR2A = 0;
+		TCCR2B = 0;
+		TCNT2  = 0;					// Initialize counter value to 0
+		OCR2A = 3;					// Set Compare Match Register to 3
+		TCCR2A |= (1 << WGM21);			// Turn on CTC mode
+		TCCR2B |= (1 << CS22);			// Set prescaler to 64
+		TIMSK2 |= (1 << OCIE2A);			// Enable timer compare interrupt
+	}
 
-  sei();  // Continue allowing interrupts
+	sei();  // Continue allowing interrupts
 
-  // update delays to get reasonable values to _timerCounterOn/OffEnd.
-  updDelay();
-  _timerCounter=0;
+	// update delays to get reasonable values to _timerCounterOn/OffEnd.
+	updDelay();
+	_timerCounter=0;
 
 }
 
 void SevenSeg::stopTimer(){
-  if(_timerID==0){
-    TCCR0B = 0;
-  }
-  if(_timerID==1){
-    TCCR1B = 0;
-  }
-  if(_timerID==2){
-    TCCR2B = 0;
-  }
+	if(_timerID==0){
+		TCCR0B = 0;
+	}
+	if(_timerID==1){
+		TCCR1B = 0;
+	}
+	if(_timerID==2){
+		TCCR2B = 0;
+	}
 }
 
 #else
