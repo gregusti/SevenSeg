@@ -688,8 +688,6 @@ void SevenSeg::interruptAction(){
 }
 
 void SevenSeg::changeDigit(int digit){
-
-
 	// Turn off all digits/segments first.
 	// If you swith on a new digit before turning off the segments you will get
 	// a slight shine of the "old" number in the "new" digit.
@@ -934,6 +932,9 @@ void SevenSeg::writeDigit(char digit){
 	// Digits are numbers. Write with writeDigit(int)
 	if(digit>=48&&digit<=57) {
 		writeDigit(digit-48);
+	} else if(digit<0) {
+		// use 7 low bits to drive segments
+		writeSeg(digit&0b01111111);
 	} else {
 		// Digits are small caps letters. Capitalize.
 		if(digit>='a'&&digit<='z') digit-=32;
@@ -969,6 +970,28 @@ void SevenSeg::writeDigit(char digit){
 		case 'X':	writeSeg(0b01110110);	break;
 		case 'Y':	writeSeg(0b01101110);	break;
 		case 'Z':	writeSeg(0b01011011);	break;
+		case '[':	writeSeg(0b00111001);	break;
+		case ']':	writeSeg(0b00001111);	break;
+		case '=':	writeSeg(0b01001000);	break;
+		case '_':	writeSeg(0b00001000);	break;
+		case '>':	writeSeg(0b00001100);	break;
+		case '<':	writeSeg(0b00011000);	break;
+		case '?':	writeSeg(0b01001011);	break;
+		case '"':	writeSeg(0b00100010);	break;
+		case '\'':	writeSeg(0b00000010);	break;
+		case '|':	writeSeg(0b00110000);	break;
+		case '\\':	writeSeg(0b01100100);	break;
+		case '/':	writeSeg(0b01010010);	break;
+		case '#':	writeSeg(0b01011100);	break;
+		case '^':	writeSeg(0b00100011);	break;
+		case '`':	writeSeg(0b00100000);	break;
+		case ':':	writeSeg(0b01000001);	break;
+		case '{':	writeSeg(0b01000110);	break;
+		case '}':	writeSeg(0b01110000);	break;
+		case ';':	writeSeg(0b01001001);	break;
+		case ',':	writeSeg(0b00000100);	break;
+		case '!':	writeSeg(0b00001010);	break;
+		//                     PGFEDCBA
 		}
 	}
 }
