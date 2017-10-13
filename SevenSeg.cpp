@@ -23,6 +23,10 @@
 #include "Arduino.h"
 #include "SevenSeg.h"
 
+// Convenience for debugging
+#define LOG(msg) Serial.print(msg)
+#define LN() Serial.println()
+
 // Constructor for 7 segments
 SevenSeg::SevenSeg(int A,int B,int C,int D,int E,int F,int G){
 	SevenSeg(A,B,C,D,E,F,G,-1); // DP initially not assigned
@@ -550,9 +554,9 @@ void SevenSeg::write(double num){
 		// Adapting to another format
 		point=point+1-_numOfDigits;
 
-	_writeMode='p';
-	_writePoint=-point;
-	_writeInt=(long int)num;
+		_writeMode='p';
+		_writePoint=-point;
+		_writeInt=(long int)num;
 
 	}
 
@@ -883,17 +887,10 @@ void SevenSeg::clearApos(){
 	}
 }
 
-#define LOG(msg) Serial.print(msg)
-#define LN() Serial.println()
-
 // Write segments from binary bits
 void SevenSeg::writeSeg(unsigned char bits) {
-	LOG("bits=PGFEDCBA");LN();
-	LOG("     ");
 	for(int s=0;s<DIGITS_COUNT;s++) {
-
 		if((bits&0b00000001)!=0) {
-			LOG('1');
 			digitalWrite(_SEG[s], _segOn);
 		} else {
 			LOG('0');
@@ -913,103 +910,18 @@ void SevenSeg::writeAll(int segVal) {
 void SevenSeg::writeDigit(int digit){
 	writeAll(_segOff);
 
-	if(digit==1){
-		//         PGFEDCBA
-		writeSeg(0b00000110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-	}
-
-	if(digit==2){
-		//         PGFEDCBA
-		writeSeg(0b01011011);
-		//    digitalWrite(_A, _segOn);
-		//    digitalWrite(_B, _segOn);
-		//    digitalWrite(_D, _segOn);
-		//    digitalWrite(_E, _segOn);
-		//    digitalWrite(_G, _segOn);
-	}
-
-	if(digit==3){
-		//         PGFEDCBA
-		writeSeg(0b01001111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit==4){
-		//         PGFEDCBA
-		writeSeg(0b01100110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit==5){
-		//         PGFEDCBA
-		writeSeg(0b01101101);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit==6){
-		//         PGFEDCBA
-		writeSeg(0b01111101);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit==7){
-		//         PGFEDCBA
-		writeSeg(0b00000111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-	}
-
-	if(digit==8){
-		//         PGFEDCBA
-		writeSeg(0b01111111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit==9){
-		//         PGFEDCBA
-		writeSeg(0b01101111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit==0){
-		//         PGFEDCBA
-		writeSeg(0b00111111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
+	switch(digit) {
+	//                 PGFEDCBA
+	case 1:	writeSeg(0b00000110); break;
+	case 2:	writeSeg(0b01011011); break;
+	case 3:	writeSeg(0b01001111); break;
+	case 4: writeSeg(0b01100110); break;
+	case 5: writeSeg(0b01101101); break;
+	case 6: writeSeg(0b01111101); break;
+	case 7: writeSeg(0b00000111); break;
+	case 8: writeSeg(0b01111111); break;
+	case 9: writeSeg(0b01101111); break;
+	case 0: writeSeg(0b00111111); break;
 	}
 
 }
@@ -1019,274 +931,45 @@ void SevenSeg::writeDigit(char digit){
 	// Turn off all LEDs first. Run writeDigit(' ') to clear digit.
 	writeAll(_segOff);
 
-	if(digit=='-'){
-		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='\370'){ // ASCII code 248 or degree symbol: '°'
-		//         PGFEDCBA
-		writeSeg(0b00000000);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
 	// Digits are numbers. Write with writeDigit(int)
-	if(digit>=48&&digit<=57)  writeDigit(digit-48);
+	if(digit>=48&&digit<=57) {
+		writeDigit(digit-48);
+	} else {
+		// Digits are small caps letters. Capitalize.
+		if(digit>='a'&&digit<='z') digit-=32;
 
-	// Digits are small caps letters. Capitalize.
-	if(digit>=97&&digit<=122) digit-=32;
-
-	if(digit=='A'){
-		//         PGFEDCBA
-		writeSeg(0b01110111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='B'){
-		//         PGFEDCBA
-		writeSeg(0b01111100);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='C'){
-		//         PGFEDCBA
-		writeSeg(0b00111001);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='D'){
-		//         PGFEDCBA
-		writeSeg(0b01011110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='E'){
-		//         PGFEDCBA
-		writeSeg(0b01111001);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='F'){
-		//         PGFEDCBA
-		writeSeg(0b01110001);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='G'){
-		/*
-    digitalWrite(_A, _segOn);
-    digitalWrite(_B, _segOn);
-    digitalWrite(_C, _segOn);
-    digitalWrite(_D, _segOn);
-    digitalWrite(_E, _segOn);
-    digitalWrite(_G, _segOn);
-    // TBD: Really write G like a 9, when it can be written as almost G?
-		 */
-		//         PGFEDCBA
-		writeSeg(0b00111101);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='H'){
-		//         PGFEDCBA
-		writeSeg(0b01110110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='I'){
-		//         PGFEDCBA
-		writeSeg(0b00110000);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='J'){
-		//         PGFEDCBA
-		writeSeg(0b00011110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-	}
-
-	if(digit=='K'){
-		//         PGFEDCBA
-		writeSeg(0b01110110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='L'){
-		//         PGFEDCBA
-		writeSeg(0b00111000);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='M'){
-		//         PGFEDCBA
-		writeSeg(0b00010101);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_E, _segOn);
-	}
-
-	if(digit=='N'){
-		//         PGFEDCBA
-		writeSeg(0b01010100);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='O'){
-		//         PGFEDCBA
-		writeSeg(0b00111111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='P'){
-		//         PGFEDCBA
-		writeSeg(0b01110011);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='Q'){
-		//         PGFEDCBA
-		writeSeg(0b01100111);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='R'){
-		//         PGFEDCBA
-		writeSeg(0b01010000);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='S'){
-		//         PGFEDCBA
-		writeSeg(0b01101101);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='T'){
-		//         PGFEDCBA
-		writeSeg(0b01111000);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='U'){
-		//         PGFEDCBA
-		writeSeg(0b00111110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='V'){
-		//         PGFEDCBA
-		writeSeg(0b00011100);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-	}
-
-	if(digit=='W'){
-		//         PGFEDCBA
-		writeSeg(0b00101010);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_F, _segOn);
-	}
-
-	if(digit=='X'){
-		//         PGFEDCBA
-		writeSeg(0b01110110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='Y'){
-		//         PGFEDCBA
-		writeSeg(0b01101110);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_C, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_F, _segOn);
-//		digitalWrite(_G, _segOn);
-	}
-
-	if(digit=='Z'){
-		//         PGFEDCBA
-		writeSeg(0b01011011);
-//		digitalWrite(_A, _segOn);
-//		digitalWrite(_B, _segOn);
-//		digitalWrite(_D, _segOn);
-//		digitalWrite(_E, _segOn);
-//		digitalWrite(_G, _segOn);
+		switch(digit) {
+		case '-': digitalWrite(_G, _segOn); break;
+		//                          PGFEDCBA
+		case '\370':	writeSeg(0b01100011); break; // ASCII code 248 or degree symbol: '°'
+		//                     PGFEDCBA
+		case 'A':	writeSeg(0b01110111);	break;
+		case 'B':	writeSeg(0b01111100);	break;
+		case 'C':	writeSeg(0b00111001);	break;
+		case 'D':	writeSeg(0b01011110);	break;
+		case 'E':	writeSeg(0b01111001);	break;
+		case 'F':	writeSeg(0b01110001);	break;
+		case 'G':	writeSeg(0b00111101);	break;
+		case 'H':	writeSeg(0b01110110);	break;
+		case 'I':	writeSeg(0b00110000);	break;
+		case 'J':	writeSeg(0b00011110);	break;
+		case 'K':	writeSeg(0b01110110);	break;
+		case 'L':	writeSeg(0b00111000);	break;
+		case 'M':	writeSeg(0b00010101);	break;
+		case 'N':	writeSeg(0b01010100);	break;
+		case 'O':	writeSeg(0b00111111);	break;
+		case 'P':	writeSeg(0b01110011);	break;
+		case 'Q':	writeSeg(0b01100111);	break;
+		case 'R':	writeSeg(0b01010000);	break;
+		case 'S':	writeSeg(0b01101101);	break;
+		case 'T':	writeSeg(0b01111000);	break;
+		case 'U':	writeSeg(0b00111110);	break;
+		case 'V':	writeSeg(0b00011100);	break;
+		case 'W':	writeSeg(0b00101010);	break;
+		case 'X':	writeSeg(0b01110110);	break;
+		case 'Y':	writeSeg(0b01101110);	break;
+		case 'Z':	writeSeg(0b01011011);	break;
+		}
 	}
 }
 
