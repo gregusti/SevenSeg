@@ -49,11 +49,14 @@ SevenSeg::SevenSeg(int A,int B,int C,int D,int E,int F,int G,int DP){
 	_F=F;
 	_G=G;
 	_DP=DP;
-	_segCnt=_DP!=-1?_LEN(_SEG):_LEN(_SEG)-1;
+	_segCnt=0;
 
 	// Set all segment pins as outputs
-	for(int s=0;s<_segCnt;s++) {
+	for(int s=0;s<1 + DIGITS_COUNT;s++) {
+	  if (_SEG[s] > 0) {
 		pinMode(_SEG[s], OUTPUT);
+		_segCnt ++;
+      }
 	}
 
 	// Assume no digit pins are used (i.e. it's only one hardwired digit)
@@ -267,7 +270,7 @@ void SevenSeg::writeClock(int mm, int ss, char c){
 
 		for(int i=_numOfDigits-1;i>=0;i--){
 			changeDigit(i);
-			int nextDigit = num % 10;
+			int nextDigit = num % 10;    		
 			writeDigit(nextDigit);       // Possible future update: don't write insignificant zeroes
 			if(c==':' && !symbColon) setColon();
 			if((c=='.')&&(i==_numOfDigits-3)) setDP();  // Only set "." in the right place

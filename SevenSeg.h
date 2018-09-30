@@ -43,10 +43,10 @@ class SevenSeg
     void setSymbPins(int,int,int,int);
 
     // Low level functions for printing to display
-    void clearDisp();
+    virtual void clearDisp();
     void changeDigit(int);
     void changeDigit(char);
-    void writeSeg(unsigned char);
+    virtual void writeSeg(unsigned char);
     void writeDigit(int);
     void writeAll(int);
     void writeDigit(char);
